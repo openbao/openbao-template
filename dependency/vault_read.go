@@ -174,11 +174,26 @@ func (d *VaultReadQuery) readSecret(clients *ClientSet) (*api.Secret, error) {
 }
 
 func deletedKVv2(s *api.Secret) bool {
-	switch md := s.Data["metadata"].(type) {
-	case map[string]interface{}:
-		return md["deletion_time"] != ""
+	md, ok := s.Data["metadata"].(map[string]interface{})
+	if !ok {
+		return false
 	}
-	return false
+
+	dtStr, ok := md["deletion_time"].(string)
+	if !ok || dtStr == "" {
+		return false
+	}
+
+	// With delete_version_after set, secrets get a future deletion_time at
+	// creation time. Only treat as deleted if the deletion_time is in the past.
+	// This mirrors the check in the KVv2 backend's pathDataRead handler.
+	dt, err := time.Parse(time.RFC3339Nano, dtStr)
+	if err != nil {
+		// If we can't parse it, assume it's deleted to be safe.
+		return true
+	}
+
+	return dt.Before(time.Now())
 }
 
 // shimKVv2Path aligns the supported legacy path to KV v2 specs by inserting
