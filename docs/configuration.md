@@ -419,10 +419,11 @@ vault {
   # 5 minutes.
   default_lease_duration = "60s"
 
-  # The fraction of the lease duration of a non-renewable secret Consul
-  # Template will wait for. This is used to calculate the sleep duration for
-  # rechecking a Vault secret value. This field is optional and will default to
-  # 90% of the lease time.
+  # The fraction of the lease duration of a non-renewable secret to wait before
+  # fetching it again. This also controls when pkiCert rotates a certificate,
+  # measured from the certificate's NotBefore to NotAfter dates. A small random
+  # offset spreads renewal requests across clients. This field is optional and
+  # defaults to 90% of the lease or certificate lifetime.
   lease_renewal_threshold = 0.90
 
   # This option tells Consul Template to automatically renew the Vault token

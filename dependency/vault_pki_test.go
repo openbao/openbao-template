@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openbao/openbao-template/renderer"
 	"github.com/openbao/openbao/api/v2"
@@ -41,7 +42,7 @@ func Test_VaultPKI_notGoodFor(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
-		dur, ok := goodFor(cert)
+		dur, ok := goodFor(cert, VaultLeaseRenewalThreshold)
 		if ok != false {
 			t.Errorf("%v: should be false", name)
 		}
@@ -189,7 +190,17 @@ func Test_VaultPKI_refetch(t *testing.T) {
 		t.Errorf("pemss don't match and should.")
 	}
 
-	// Don't pre-drain here as we want it to get a new pems
+	// Each check draws fresh jitter, so wait until the latest possible
+	// rotation time before checking that the cached certificate is replaced.
+	_, cert, err := pemsCert([]byte(pems1.Cert))
+	if err != nil || cert == nil {
+		t.Fatalf("parse issued certificate: %v", err)
+	}
+	<-d.sleepCh
+	latestRotation := cert.NotBefore.Add(time.Duration(float64(cert.NotAfter.Sub(cert.NotBefore)) * (VaultLeaseRenewalThreshold + .03)))
+	if wait := time.Until(latestRotation.Add(100 * time.Millisecond)); wait > 0 {
+		time.Sleep(wait)
+	}
 	act3, rm, err := d.Fetch(clients, nil)
 	if err != nil {
 		t.Fatal(err)

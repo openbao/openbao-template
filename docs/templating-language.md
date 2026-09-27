@@ -651,6 +651,11 @@ Eg. If you don't include the CA in the file the CA field will be blank when
 loading from cache. And note that you **must** include the Certificate itself
 in this file as it contains the TTL/expiration data.
 
+`pkiCert` rotates a certificate around the `vault.lease_renewal_threshold`
+fraction of its original lifetime (90% by default), with a small random offset.
+OpenBao Agent also uses this timing when it embeds this library, with the
+default threshold from its template runner. A cached certificate past that
+point is replaced even if it has not expired yet.
 
 ```golang
 {{ with pkiCert "pki/issue/my-domain-dot-com" "common_name=foo.example.com" }}

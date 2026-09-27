@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"math/rand"
 	"net/url"
 	"os"
 	"strings"
@@ -89,7 +88,7 @@ func (d *VaultPKIQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interface
 			return encPems, err
 		}
 
-		if sleepFor, ok := goodFor(cert); ok {
+		if sleepFor, ok := goodFor(cert, VaultLeaseRenewalThreshold); ok {
 			d.sleepCh <- sleepFor
 			return encPems, nil
 		}
@@ -108,37 +107,6 @@ func (d *VaultPKIQuery) Fetch(clients *ClientSet, opts *QueryOptions) (interface
 		return PemEncoded{}, nil, err
 	}
 	return respWithMetadata(encPems)
-}
-
-// returns time left in ~90% of the original lease and a boolean
-// that returns false if cert needs renewing, true otherwise
-func goodFor(cert *x509.Certificate) (time.Duration, bool) {
-	// If we got called with a cert that doesn't exist, just say there's no
-	// time left, and it needs to be renewed
-	if cert == nil {
-		return 0, false
-	}
-	// These are all int64's with Seconds since the Epoch, handy for the math
-	start, end := cert.NotBefore.Unix(), cert.NotAfter.Unix()
-	now := time.Now().UTC().Unix()
-	if end <= now { // already expired
-		return 0, false
-	}
-	lifespan := end - start        // full ttl of cert
-	duration := end - now          // duration remaining
-	gooddur := (duration * 9) / 10 // 90% of duration
-	mindur := (lifespan / 10)      // 10% of lifespan
-	if gooddur <= mindur {
-		return 0, false // almost expired, get a new one
-	}
-	if gooddur > 100 { // 100 seconds
-		// add jitter if big enough for it to matter
-		r := rand.New(rand.NewSource(time.Now().UnixNano()))
-		// between 87% and 93%
-		gooddur = gooddur + ((gooddur / 100) * int64(r.Intn(6)-3))
-	}
-	sleepFor := time.Duration(gooddur * 1e9) // basically: gooddur*time.Second
-	return sleepFor, true
 }
 
 // loops through all pem encoded blocks in the byte stream
