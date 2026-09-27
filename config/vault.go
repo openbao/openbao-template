@@ -94,9 +94,8 @@ type VaultConfig struct {
 	// set by vault
 	DefaultLeaseDuration *time.Duration `mapstructure:"default_lease_duration"`
 
-	// LeaseRenewalThreshold configues how long Consul Template should wait for to
-	// refresh dynamic, non-renewable leases, measured as a fraction of the lease
-	// duration.
+	// LeaseRenewalThreshold configures when non-renewable leases and PKI
+	// certificates are refreshed, measured as a fraction of their lifetime.
 	LeaseRenewalThreshold *float64 `mapstructure:"lease_renewal_threshold"`
 
 	// If Token is empty and K8SAuthRoleName is set, it means to use
